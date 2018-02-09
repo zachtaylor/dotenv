@@ -19,7 +19,6 @@ This will install `dotenv` to your `$GOPATH/bin`. This program will print all en
 ```
 zach@ztaylor.me /tmp $ ls
 zach@ztaylor.me /tmp $ dotenv
-zach@ztaylor.me /tmp $ echo
 zach@ztaylor.me /tmp $ echo "ENV=dev" > .env
 zach@ztaylor.me /tmp $ dotenv
 ENV=dev
