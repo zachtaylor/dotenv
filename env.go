@@ -43,9 +43,14 @@ func SourceLine(line string) {
 // Default underwrites a value in the Cache
 //
 // If k is already set, this operation does nothing
-func Default(k, v string) {
-	if _, ok := Cache[k]; !ok {
+// Returns the accepted value, as in guarantee to Get(k) == Default(k, v)
+// You can therefore repeat Default() safely
+func Default(k, v string) string {
+	if w, ok := Cache[k]; ok {
+		return w
+	} else {
 		Set(k, v)
+		return v
 	}
 }
 
