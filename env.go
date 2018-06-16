@@ -1,12 +1,18 @@
-package env
+package env // import "ztaylor.me/env"
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
+	"strconv"
 	"strings"
 )
 
-// Cache holds all prereferenced
+func init() {
+	bootstrap()
+}
+
+// Cache holds the env values
 var Cache = make(map[string]string)
 
 // Name is a macro for Get("ENV")
@@ -16,8 +22,7 @@ func Name() string {
 
 // Get uses best effort to find a value for k
 //
-// If any value has been written to Cache, use that value
-// Else, use os.Getenv and save this to Cache
+// Uses Cache, else, use os.Getenv and save to Cache
 func Get(k string) string {
 	if v, ok := Cache[k]; ok {
 		return v
@@ -27,6 +32,18 @@ func Get(k string) string {
 	return osenv
 }
 
+// GetI uses Get with int type casting
+func GetI(k string) int {
+	i, _ := strconv.ParseInt(Get(k), 0, 64)
+	return int(i)
+}
+
+// GetI uses Get with bool type casting
+func GetB(k string) bool {
+	b, _ := strconv.ParseBool(Get(k))
+	return b
+}
+
 // Set overwrites a value in the Cache
 func Set(k, v string) {
 	Cache[k] = v
@@ -34,17 +51,16 @@ func Set(k, v string) {
 
 // SourceLine imports a setting with "x=y" format
 func SourceLine(line string) {
-	if setting := strings.Split(line, "="); len(setting) != 2 {
-	} else {
-		Set(setting[0], strings.Trim(setting[1], ` '"`))
+	if setting := strings.Split(line, "="); len(setting) == 1 {
+		Set(setting[0], "true")
+	} else if len(setting) == 1 {
+		Set(setting[0], strings.Trim(setting[1], ` '";`))
 	}
 }
 
 // Default underwrites a value in the Cache
 //
-// If k is already set, this operation does nothing
-// Returns the accepted value, as in guarantee to Get(k) == Default(k, v)
-// You can therefore repeat Default() safely
+// If k is already set in Cache, this operation does nothing
 func Default(k, v string) string {
 	if w, ok := Cache[k]; ok {
 		return w
@@ -52,12 +68,6 @@ func Default(k, v string) string {
 		Set(k, v)
 		return v
 	}
-}
-
-// Bootstrap sources the ".env" file and parses cli flags
-func Bootstrap() {
-	Source(".env")
-	Flags()
 }
 
 // Flags reads os.Args to source env values in Cache
@@ -86,4 +96,12 @@ func Source(path string) error {
 	}
 
 	return nil
+}
+
+func bootstrap() {
+	if e := Source(".env"); e != nil {
+		fmt.Println("error reading .env file: " + e.Error())
+	}
+
+	Flags()
 }
