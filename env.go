@@ -49,15 +49,6 @@ func Set(k, v string) {
 	Cache[k] = v
 }
 
-// SourceLine imports a setting with "x=y" format
-func SourceLine(line string) {
-	if setting := strings.Split(line, "="); len(setting) == 1 {
-		Set(setting[0], "true")
-	} else if len(setting) == 1 {
-		Set(setting[0], strings.Trim(setting[1], ` '";`))
-	}
-}
-
 // Default underwrites a value in the Cache
 //
 // If k is already set in Cache, this operation does nothing
@@ -98,10 +89,18 @@ func Source(path string) error {
 	return nil
 }
 
-func bootstrap() {
-	if e := Source(".env"); e != nil {
-		fmt.Println("error reading .env file: " + e.Error())
+// SourceLine imports a setting with "x=y" format
+func SourceLine(line string) {
+	if setting := strings.Split(line, "="); len(setting) == 1 {
+		Set(setting[0], "true")
+	} else if len(setting) == 2 {
+		Set(setting[0], strings.Trim(setting[1], ` '";`))
 	}
+}
 
+func bootstrap() {
+	if err := Source(".env"); err != nil {
+		fmt.Println(err)
+	}
 	Flags()
 }
