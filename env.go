@@ -80,7 +80,7 @@ func Source(path string) error {
 	}
 
 	for _, line := range strings.Split(string(file), "\n") {
-		if line = strings.Trim(strings.Split(line, "#")[0], " ;"); line == "" {
+		if line = strings.Trim(strings.Split(line, "#")[0], " ;\r"); line == "" {
 		} else {
 			SourceLine(line)
 		}
