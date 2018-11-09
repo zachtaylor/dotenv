@@ -4,76 +4,100 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"strconv"
 	"strings"
 )
 
-func init() {
-	bootstrap()
+// Provider is environment controller
+type Provider interface {
+	// Get returns the value by key
+	Get(string) string
+	// Default underwrites a value, causing no-op if a value has been previously Set()
+	Default(string, string) string
+	// Set overwrites a value
+	Set(string, string)
 }
 
-// Cache holds the env values
-var Cache = make(map[string]string)
+// global is used as cache by Global()
+var global Provider
 
-// Name is a macro for Get("ENV")
-func Name() string {
-	return Get("ENV")
+// Global returns the global Provider, and bootstraps if necessary
+func Global() Provider {
+	if global == nil {
+		global = bootstrap()
+	}
+	return global
+}
+
+// bootstrap used to create and init new DefaultProvider
+//
+// uses ProviderSource() with local ".env" file
+// uses ProviderFlags() with os.Args[1:]
+func bootstrap() Provider {
+	global := NewDefaultProvider()
+	if err := ProviderSource(global, ".env"); err != nil {
+		fmt.Println(err)
+	}
+	ProviderFlags(global, os.Args[1:])
+	return global
+}
+
+// CacheProvider is a basic k/v map
+type CacheProvider map[string]string
+
+//Get returns the value by key
+func (m CacheProvider) Get(k string) string {
+	return m[k]
+}
+
+// Default underwrites a value, causing no-op if a value has been previously Set()
+func (m CacheProvider) Default(k, v string) string {
+	if w, ok := m[k]; ok {
+		return w
+	}
+	m.Set(k, v)
+	return v
+}
+
+// Set overwrites a value
+func (m CacheProvider) Set(k string, v string) {
+	m[k] = v
+}
+
+// DefaultProvider wraps CacheProvider, adds os.Getenv to Provider.Get
+type DefaultProvider struct {
+	CacheProvider
+}
+
+// NewDefaultProvider creates an empty DefaultProvider
+func NewDefaultProvider() *DefaultProvider {
+	return &DefaultProvider{CacheProvider{}}
 }
 
 // Get uses best effort to find a value for k
 //
-// Uses Cache, else, use os.Getenv and save to Cache
-func Get(k string) string {
-	if v, ok := Cache[k]; ok {
+// Uses cache, else caches and returns value os.Getenv
+func (m *DefaultProvider) Get(k string) string {
+	if v, ok := m.CacheProvider[k]; ok {
 		return v
 	}
 	osenv := os.Getenv(k)
-	Cache[k] = osenv
+	m.CacheProvider[k] = osenv
 	return osenv
 }
 
-// GetI uses Get with int type casting
-func GetI(k string) int {
-	i, _ := strconv.ParseInt(Get(k), 0, 64)
-	return int(i)
-}
-
-// GetI uses Get with bool type casting
-func GetB(k string) bool {
-	b, _ := strconv.ParseBool(Get(k))
-	return b
-}
-
-// Set overwrites a value in the Cache
-func Set(k, v string) {
-	Cache[k] = v
-}
-
-// Default underwrites a value in the Cache
-//
-// If k is already set in Cache, this operation does nothing
-func Default(k, v string) string {
-	if w, ok := Cache[k]; ok {
-		return w
-	} else {
-		Set(k, v)
-		return v
-	}
-}
-
-// Flags reads os.Args to source env values in Cache
+// ProviderFlags uses ProviderSourceLine to read args into Provider
 //
 // The dash char ('-') is optional, but the equals char ('=') is required
-func Flags() {
-	for _, line := range os.Args[1:] {
-		SourceLine(strings.Trim(line, `-`))
+func ProviderFlags(p Provider, args []string) {
+	for _, line := range args {
+		ProviderSourceLine(p, strings.Trim(line, `-`))
 	}
 }
 
-// Source reads a file with the given path
+// ProviderSource reads a file with the given path into Provider
 //
 // Comments are removed, and empty lines are skipped
-func Source(path string) error {
+func ProviderSource(p Provider, path string) error {
 	file, e := ioutil.ReadFile(path)
 	if e != nil {
 		return e
@@ -82,25 +106,18 @@ func Source(path string) error {
 	for _, line := range strings.Split(string(file), "\n") {
 		if line = strings.Trim(strings.Split(line, "#")[0], " ;\r"); line == "" {
 		} else {
-			SourceLine(line)
+			ProviderSourceLine(p, line)
 		}
 	}
 
 	return nil
 }
 
-// SourceLine imports a setting with "x=y" format
-func SourceLine(line string) {
+// ProviderSourceLine imports a setting with "x=y" format into Provider
+func ProviderSourceLine(p Provider, line string) {
 	if setting := strings.Split(line, "="); len(setting) == 1 {
-		Set(setting[0], "true")
+		p.Set(setting[0], "true")
 	} else if len(setting) == 2 {
-		Set(setting[0], strings.Trim(setting[1], ` '";`))
+		p.Set(setting[0], strings.Trim(setting[1], ` '";`))
 	}
-}
-
-func bootstrap() {
-	if err := Source(".env"); err != nil {
-		fmt.Println(err)
-	}
-	Flags()
 }

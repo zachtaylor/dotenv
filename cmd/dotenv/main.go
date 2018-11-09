@@ -2,11 +2,14 @@ package main
 
 import (
 	"fmt"
+
 	"ztaylor.me/env"
 )
 
 func main() {
-	for k, v := range env.Cache {
+	p := env.DefaultProvider{}
+	env.ProviderSource(p, ".env")
+	for k, v := range p {
 		fmt.Printf("%s=%s\n", k, v)
 	}
 }
