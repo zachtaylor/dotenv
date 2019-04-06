@@ -1,2 +1,2 @@
-# Gitignore file
-dotenv
+# git ignore
+cmd/dotenv/dotenv*

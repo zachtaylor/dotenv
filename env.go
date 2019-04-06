@@ -1,3 +1,4 @@
+// Package env provides runtime environment
 package env // import "ztaylor.me/env"
 
 import (
@@ -7,117 +8,64 @@ import (
 	"strings"
 )
 
-// Provider is environment controller
-type Provider interface {
+// Service is environment controller
+type Service interface {
 	// Get returns the value by key
 	Get(string) string
-	// Default underwrites a value, causing no-op if a value has been previously Set()
+	// Default underwrites a value, returning the final value
 	Default(string, string) string
 	// Set overwrites a value
 	Set(string, string)
 }
 
 // global is used as cache by Global()
-var global Provider
+var global Service
 
-// Global returns the global Provider, and bootstraps if necessary
-func Global() Provider {
+// Global returns the global Service, and bootstraps if necessary
+func Global() Service {
 	if global == nil {
-		global = bootstrap()
+		global = NewDefaultService()
+		if err := ParseFile(global, ".env"); err != nil {
+			fmt.Println(err)
+		}
+		ParseFlags(global)
 	}
 	return global
 }
 
-// bootstrap used to create and init new DefaultProvider
+// ParseFile uses ParseLine to write file contents to Service
 //
-// uses ProviderSource() with local ".env" file
-// uses ProviderFlags() with os.Args[1:]
-func bootstrap() Provider {
-	global := NewDefaultProvider()
-	if err := ProviderSource(global, ".env"); err != nil {
-		fmt.Println(err)
-	}
-	ProviderFlags(global, os.Args[1:])
-	return global
-}
-
-// CacheProvider is a basic k/v map
-type CacheProvider map[string]string
-
-//Get returns the value by key
-func (m CacheProvider) Get(k string) string {
-	return m[k]
-}
-
-// Default underwrites a value, causing no-op if a value has been previously Set()
-func (m CacheProvider) Default(k, v string) string {
-	if w, ok := m[k]; ok {
-		return w
-	}
-	m.Set(k, v)
-	return v
-}
-
-// Set overwrites a value
-func (m CacheProvider) Set(k string, v string) {
-	m[k] = v
-}
-
-// DefaultProvider wraps CacheProvider, adds os.Getenv to Provider.Get
-type DefaultProvider struct {
-	CacheProvider
-}
-
-// NewDefaultProvider creates an empty DefaultProvider
-func NewDefaultProvider() *DefaultProvider {
-	return &DefaultProvider{CacheProvider{}}
-}
-
-// Get uses best effort to find a value for k
-//
-// Uses cache, else caches and returns value os.Getenv
-func (m *DefaultProvider) Get(k string) string {
-	if v, ok := m.CacheProvider[k]; ok {
-		return v
-	}
-	osenv := os.Getenv(k)
-	m.CacheProvider[k] = osenv
-	return osenv
-}
-
-// ProviderFlags uses ProviderSourceLine to read args into Provider
-//
-// The dash char ('-') is optional, but the equals char ('=') is required
-func ProviderFlags(p Provider, args []string) {
-	for _, line := range args {
-		ProviderSourceLine(p, strings.Trim(line, `-`))
-	}
-}
-
-// ProviderSource reads a file with the given path into Provider
-//
-// Comments are removed, and empty lines are skipped
-func ProviderSource(p Provider, path string) error {
+// SQL inline comments are trimmed ("--comment"), and empty lines are skipped
+func ParseFile(s Service, path string) error {
 	file, e := ioutil.ReadFile(path)
 	if e != nil {
 		return e
 	}
 
 	for _, line := range strings.Split(string(file), "\n") {
-		if line = strings.Trim(strings.Split(line, "#")[0], " ;\r"); line == "" {
+		if line = strings.Trim(strings.Split(line, "--")[0], " ;\r"); line == "" {
 		} else {
-			ProviderSourceLine(p, line)
+			ParseLine(s, line)
 		}
 	}
 
 	return nil
 }
 
-// ProviderSourceLine imports a setting with "x=y" format into Provider
-func ProviderSourceLine(p Provider, line string) {
+// ParseFlags uses ParseLine to write os.Args to Service
+func ParseFlags(s Service) {
+	for _, line := range os.Args[1:] {
+		ParseLine(s, strings.Trim(line, `-`))
+	}
+}
+
+// ParseLine uses "x=y" format to write values to Service
+//
+// "=y" is optional; if missing, parsed as "=true"
+func ParseLine(s Service, line string) {
 	if setting := strings.Split(line, "="); len(setting) == 1 {
-		p.Set(setting[0], "true")
+		s.Set(setting[0], "true")
 	} else if len(setting) == 2 {
-		p.Set(setting[0], strings.Trim(setting[1], ` '";`))
+		s.Set(setting[0], strings.Trim(setting[1], ` '";`))
 	}
 }
