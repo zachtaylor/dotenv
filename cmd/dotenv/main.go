@@ -5,19 +5,14 @@ import (
 	"fmt"
 
 	"ztaylor.me/env"
-	"ztaylor.me/env/internal/service"
 )
 
 func main() {
-	cache := service.Cache{}
-	if err := env.ParseFile(cache, ".env"); err != nil {
-		fmt.Println("open .env failed")
-	}
-	env.ParseFlags(cache)
-	if len(cache) < 1 {
+	env := env.Global()
+	if len(env) < 1 {
 		fmt.Println("env is empty")
 	}
-	for k, v := range cache {
-		fmt.Printf("%s=%s\n", k, v)
+	for k, v := range env {
+		fmt.Printf(k + "=" + v + "\n")
 	}
 }
