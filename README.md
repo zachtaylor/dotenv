@@ -9,21 +9,20 @@ Package env provides runtime environment, using CLI flags, and/or config file, a
 ```go
 func main() {
 	// most common case
-	env := env.Global() // overwrite package name why not
+	env := env.Default() // overwrite package name why not
 	server := server.New(env) // clients use env
 	...
 	// multiple env #1
-	e1, e2 := env.NewService(), env.NewService() // empty services
-	env.ParseFile(e1, ".private1.env") // set env with custom file name
-	env.ParseFile(e2, ".private2.env") // set env with custom file name
+	serviceA := env.File(".private1.env") // new env with custom file name
+	serviceB := env.File(".private2.env") // new env with custom file name
 	handler1 := newXHandler(e1) // clients use env
 	handler2 := newYHandler(e2) // clients use env
 	server := server.New(handler1, handler2) // separate environments
 	...
 	// multiple env #2
-	env := env.Global()
-	dbenv := env.Match("DB_")
-	pay := env.Match("PAY_")
+	env := env.Default() // load global environment
+	dbenv := env.Match("DB_") // extract env from context
+	pay := env.Match("PAY_") // extract env from context
 	handler1 := newXHandler(dbenv) // clients use env
 	handler2 := newYHandler(pay) // clients use env
 	server := server.New(handler1, handler2) // separate environments
@@ -32,11 +31,15 @@ func main() {
 
 ## `cmd/dotenv`
 
-Executable: print all values in global environment
+Executable: print all values in the default environment
 
 ```sh
-$ dotenv
-open .env failed
+$ .\dotenv
+env: open .env: The system cannot find the file specified.
+env is empty
+$ .\dotenv -help
+env: open .env: The system cannot find the file specified.
+help=true
 $ touch .env
 $ dotenv
 env is empty

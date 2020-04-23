@@ -8,7 +8,7 @@ import (
 )
 
 func main() {
-	env := env.Global()
+	env := env.Default()
 	if len(env) < 1 {
 		fmt.Println("env is empty")
 	}

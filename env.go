@@ -3,17 +3,29 @@ package env // import "ztaylor.me/env"
 
 import "fmt"
 
-// Global is used as cache by Global()
-var global Service
-
-// Default returns the global Service, and bootstraps if necessary
+// Default returns a new Service, loaded with `ParseFile(".env")`, `ParseEnv()`, and `ParseAllFlags()`
 func Default() Service {
-	if global == nil {
-		global = NewService()
-		if err := global.ParseFile(".env"); err != nil {
-			fmt.Println("env: " + err.Error())
-		}
-		global.ParseFlags()
+	service := NewService()
+	if err := service.ParseFile(".env"); err != nil {
+		fmt.Println("env: " + err.Error())
 	}
-	return global
+	service.ParseEnv()
+	service.ParseAllFlags()
+	return service
+}
+
+// File returns a new Service with `ParseFile(path)` loaded
+func File(path string) Service {
+	service := NewService()
+	if err := service.ParseFile(path); err != nil {
+		fmt.Println("env: " + err.Error())
+	}
+	return service
+}
+
+// Flags returns a new Service with `ParseAllFlags()` loaded
+func Flags() Service {
+	service := NewService()
+	service.ParseAllFlags()
+	return service
 }
