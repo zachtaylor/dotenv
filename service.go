@@ -1,6 +1,7 @@
 package env
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"strings"
@@ -84,6 +85,13 @@ func (s Service) ParseFile(path string) error {
 	return nil
 }
 
+// ParseDefaultFile calls `ParseFile` with `".env"`, logs and clears file error
+func (s Service) ParseDefaultFile() {
+	if err := s.ParseFile(".env"); err != nil {
+		fmt.Println("env: " + err.Error())
+	}
+}
+
 // ParseFlags accepts raw string flag input, e.g. `os.Args[1:]`
 func (s Service) ParseFlags(args []string) Service {
 	for _, arg := range args {
@@ -101,5 +109,13 @@ func (s Service) ParseAllFlags() Service {
 			s.Parse(arg[1:])
 		}
 	}
+	return s
+}
+
+// ParseDefault returns a new Service, loaded with `ParseFile(".env")`, `ParseEnv()`, and `ParseAllFlags()`
+func (s Service) ParseDefault() Service {
+	s.ParseDefaultFile()
+	s.ParseEnv()
+	s.ParseAllFlags()
 	return s
 }

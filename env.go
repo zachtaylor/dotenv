@@ -1,26 +1,27 @@
 // Package env provides runtime environment
 package env // import "ztaylor.me/env"
 
-import "fmt"
-
-// Default returns a new Service, loaded with `ParseFile(".env")`, `ParseEnv()`, and `ParseAllFlags()`
+// Default returns a new Service, loaded with `ParseDefaultFile()`, `ParseEnv()`, and `ParseAllFlags()`
 func Default() Service {
 	service := NewService()
-	if err := service.ParseFile(".env"); err != nil {
-		fmt.Println("env: " + err.Error())
-	}
-	service.ParseEnv()
-	service.ParseAllFlags()
+	service.ParseDefault()
+	return service
+}
+
+// DefaultFile returns a new Service, loaded with `ParseDefaultFile()`
+func DefaultFile() Service {
+	service := NewService()
+	service.ParseDefaultFile()
 	return service
 }
 
 // File returns a new Service with `ParseFile(path)` loaded
-func File(path string) Service {
+func File(path string) (Service, error) {
 	service := NewService()
 	if err := service.ParseFile(path); err != nil {
-		fmt.Println("env: " + err.Error())
+		return nil, err
 	}
-	return service
+	return service, nil
 }
 
 // Flags returns a new Service with `ParseAllFlags()` loaded
